@@ -18,8 +18,9 @@ Release/
 *.user
 *.suo
 
-# Generated binaries
+# Generated binaries (except bundled DLL in package)
 *.dll
+!aesdll/AES_DLL.dll
 *.lib
 *.exe
 *.so
@@ -43,6 +44,3 @@ __pycache__/
 *.egg-info/
 dist/
 *.whl
-
-# Bundled DLL (built during pip install, not tracked)
-aes_dll/AES_DLL.dll
