@@ -10,7 +10,7 @@
 
 ```bash
 # 从 GitHub 直接安装（需要安装 MSVC / Visual Studio）
-pip install git+https://github.com/你的用户名/AES_DLL.git
+pip install git+https://github.com/YiWenZhang/AES_DLL.git
 ```
 
 安装后即可使用：
@@ -36,7 +36,7 @@ original = aesdll.decrypt_string(token, key)
 print(original)  # "hello world"
 ```
 
-> **注意**：从 Git 安装时会自动编译 DLL，需要本机装有 Visual Studio（MSVC）。如果不想编译，可以从 [Releases](https://github.com/你的用户名/AES_DLL/releases) 下载预编译的 DLL，手动放到 `aesdll/` 目录下即可。
+> **注意**：从 Git 安装时会自动编译 DLL，需要本机装有 Visual Studio（MSVC）。如果不想编译，可以从 [Releases](https://github.com/YiWenZhang/AES_DLL/releases) 下载预编译的 DLL，手动放到 `aesdll/` 目录下即可。
 
 
 ## C/C++ 使用
@@ -165,7 +165,7 @@ AES_DLL/
 # 1. 在 github.com/new 创建一个空仓库（不要勾选 README / .gitignore）
 
 # 2. 推送代码
-git remote add origin https://github.com/你的用户名/AES_DLL.git
+git remote add origin https://github.com/YiWenZhang/AES_DLL.git
 git branch -M main
 git push -u origin main
 ```
