@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "aes-dll"
+version = "1.0.0"
+description = "AES-256-CBC encryption DLL with Python bindings — encrypt files and strings from any language"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "AES_DLL Contributors" }]
+keywords = ["aes", "encryption", "dll", "crypto", "security"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Security :: Cryptography",
+]
+requires-python = ">=3.9"
+
+[project.urls]
+Homepage = "https://github.com/USERNAME/AES_DLL"
+Repository = "https://github.com/USERNAME/AES_DLL"
+
+[tool.setuptools]
+packages = ["aesdll"]
+
+[tool.setuptools.package-data]
+aesdll = ["AES_DLL.dll"]

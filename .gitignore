@@ -37,3 +37,12 @@ Makefile
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Python
+__pycache__/
+*.egg-info/
+dist/
+*.whl
+
+# Bundled DLL (built during pip install, not tracked)
+aes_dll/AES_DLL.dll
