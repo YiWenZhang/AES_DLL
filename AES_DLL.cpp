@@ -272,6 +272,121 @@ AES_DLL_API char* __stdcall DecryptString(const char* hexCiphertext,
 }
 
 // ============================================================
+// GenerateKeyFromHardware: derive 32-byte AES-256 key from
+// volume serial + computer name + MAC address via SHA-256
+// ============================================================
+AES_DLL_API int __stdcall GenerateKeyFromHardware(uint8_t keyOut[32]) {
+    // Collect hardware entropy sources
+    uint8_t buffer[512];
+    size_t offset = 0;
+
+    // 1) Volume serial number of the system drive
+    wchar_t volumeName[256] = {0};
+    DWORD volSerial = 0;
+    if (GetVolumeInformationW(L"C:\\", volumeName, 256, &volSerial, nullptr, nullptr, nullptr, 0)) {
+        memcpy(buffer + offset, &volSerial, sizeof(volSerial));
+        offset += sizeof(volSerial);
+    }
+
+    // 2) Computer name
+    wchar_t compName[256] = {0};
+    DWORD compNameLen = 256;
+    if (GetComputerNameW(compName, &compNameLen)) {
+        int bytes = WideCharToMultiByte(CP_UTF8, 0, compName, -1,
+                                        reinterpret_cast<char*>(buffer + offset),
+                                        static_cast<int>(sizeof(buffer) - offset),
+                                        nullptr, nullptr);
+        if (bytes > 0) {
+            offset += (bytes - 1); // skip null terminator
+        }
+    }
+
+    // 3) MAC address via existing helper
+    char* macStr = GetMacAddress();
+    if (macStr) {
+        size_t macLen = strlen(macStr);
+        if (offset + macLen <= sizeof(buffer)) {
+            memcpy(buffer + offset, macStr, macLen);
+            offset += macLen;
+        }
+        free(macStr);
+    }
+
+    if (offset == 0) return -1;
+
+    AES::DeriveKey256(buffer, offset, keyOut);
+    return 0;
+}
+
+// ============================================================
+// EncryptKeyWithPassword: encrypt a 32-byte AES key with a password.
+// Output: [16-byte IV][48-byte ciphertext (PKCS7-padded 32→48)] = 64 bytes
+// ============================================================
+AES_DLL_API int __stdcall EncryptKeyWithPassword(const char* password,
+                                                  const uint8_t aesKey[32],
+                                                  uint8_t outEncryptedKey[64]) {
+    if (!password || !aesKey || !outEncryptedKey) return -1;
+
+    // Derive a 256-bit key from the password
+    uint8_t passwordKey[32];
+    AES::DeriveKey256(reinterpret_cast<const uint8_t*>(password), strlen(password), passwordKey);
+
+    // Generate random IV
+    uint8_t iv[AES::BLOCK_SIZE];
+    AES::GenerateRandomBytes(iv, AES::BLOCK_SIZE);
+
+    // Encrypt the 32-byte AES key (CBC mode: PKCS7 pads to 48 bytes)
+    std::vector<uint8_t> keyBytes(aesKey, aesKey + 32);
+    std::vector<uint8_t> ciphertext;
+    try {
+        ciphertext = AES::EncryptCBC(keyBytes, passwordKey, iv);
+    } catch (...) {
+        return -1;
+    }
+
+    // Output: IV (16) + ciphertext (48) = 64 bytes
+    memcpy(outEncryptedKey, iv, AES::BLOCK_SIZE);
+    memcpy(outEncryptedKey + AES::BLOCK_SIZE, ciphertext.data(), ciphertext.size());
+
+    return 0;
+}
+
+// ============================================================
+// DecryptKeyWithPassword: decrypt a password-encrypted AES key.
+// Input: [16-byte IV][48-byte ciphertext] = 64 bytes
+// ============================================================
+AES_DLL_API int __stdcall DecryptKeyWithPassword(const char* password,
+                                                  const uint8_t encryptedKey[64],
+                                                  uint8_t outAesKey[32]) {
+    if (!password || !encryptedKey || !outAesKey) return -1;
+
+    // Derive the same 256-bit key from the password
+    uint8_t passwordKey[32];
+    AES::DeriveKey256(reinterpret_cast<const uint8_t*>(password), strlen(password), passwordKey);
+
+    // Extract IV (first 16 bytes)
+    uint8_t iv[AES::BLOCK_SIZE];
+    memcpy(iv, encryptedKey, AES::BLOCK_SIZE);
+
+    // Remaining 48 bytes is ciphertext
+    std::vector<uint8_t> ciphertext(encryptedKey + AES::BLOCK_SIZE,
+                                    encryptedKey + AES::BLOCK_SIZE + 48);
+
+    // Decrypt
+    std::vector<uint8_t> plaintext;
+    try {
+        plaintext = AES::DecryptCBC(ciphertext, passwordKey, iv);
+    } catch (...) {
+        return -1;
+    }
+
+    if (plaintext.size() != 32) return -1;
+
+    memcpy(outAesKey, plaintext.data(), 32);
+    return 0;
+}
+
+// ============================================================
 // FreeString: free memory allocated by the DLL
 // ============================================================
 AES_DLL_API void __stdcall FreeString(char* str) {

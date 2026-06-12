@@ -18,21 +18,26 @@ pip install git+https://github.com/YiWenZhang/AES_DLL.git
 ```python
 import aesdll
 
-# 基于本机 MAC 地址生成密钥
-key = aesdll.generate_key_from_machine()
+# === 混合加密流程（实训要求） ===
+# 1. 基于本机硬件特征生成 AES 密钥
+aes_key = aesdll.generate_key_from_machine()
+# 或: aes_key = aesdll.generate_key_from_hardware()
 
-# 加密文件
-aesdll.encrypt_file("秘密.txt", "秘密.enc", key)
+# 2. AES 密钥加密数据
+aesdll.encrypt_file("秘密.txt", "秘密.enc", aes_key)
+token = aesdll.encrypt_string("hello world", aes_key)
 
-# 解密文件
-aesdll.decrypt_file("秘密.enc", "解密.txt", key)
+# 3. 用口令加密 AES 密钥后传输给接收方
+password = "my-shared-password"
+encrypted_key = aesdll.encrypt_key_with_password(aes_key, password)
+# 发送: encrypted_key(64字节) + 密文文件"秘密.enc"
 
-# 加密字符串
-token = aesdll.encrypt_string("hello world", key)
-print(token)  # 十六进制密文
+# 4. 接收方用口令解密得到 AES 密钥
+aes_key_recovered = aesdll.decrypt_key_with_password(encrypted_key, password)
 
-# 解密字符串
-original = aesdll.decrypt_string(token, key)
+# 5. 用恢复的 AES 密钥解密密文
+aesdll.decrypt_file("秘密.enc", "解密.txt", aes_key_recovered)
+original = aesdll.decrypt_string(token, aes_key_recovered)
 print(original)  # "hello world"
 ```
 
@@ -120,11 +125,43 @@ cmake --build .
 |------|------|
 | `GetMacAddress()` | 获取本机 MAC 地址（十六进制大写字符串，无分隔符） |
 | `GenerateKeyFromMachine(key[32])` | 从 MAC 地址派生 32 字节 AES-256 密钥 |
+| `GenerateKeyFromHardware(key[32])` | 从硬件信息（卷序列号+计算机名+MAC）派生 AES-256 密钥 |
 | `AES_EncryptFile(in, out, key[32])` | 加密文件，输出格式：`[16字节IV][密文]` |
 | `AES_DecryptFile(in, out, key[32])` | 解密文件，还原明文 |
 | `EncryptString(text, key[32])` | 加密字符串，返回十六进制密文 |
 | `DecryptString(hex, key[32])` | 解密十六进制密文，还原明文字符串 |
 | `FreeString(str)` | 释放 DLL 分配的字符串内存 |
+| `EncryptKeyWithPassword(password, key[32], out[64])` | 用口令加密 AES 密钥，输出 64 字节（IV+密文） |
+| `DecryptKeyWithPassword(password, in[64], out[32])` | 用口令解密得到 AES 密钥 |
+
+### 混合加密示例（C/C++）
+
+```c
+#include "AES_DLL.h"
+#pragma comment(lib, "AES_DLL.lib")
+
+int main() {
+    // 1. 生成硬件相关 AES 密钥
+    uint8_t aesKey[32];
+    GenerateKeyFromMachine(aesKey);
+
+    // 2. 加密数据
+    AES_EncryptFile(L"plain.txt", L"cipher.bin", aesKey);
+
+    // 3. 用口令加密 AES 密钥
+    uint8_t encryptedKey[64];
+    EncryptKeyWithPassword("共享口令", aesKey, encryptedKey);
+    // 发送 encryptedKey(64B) + cipher.bin 给接收方
+
+    // 4. 接收方：口令解密得到 AES 密钥
+    uint8_t recoveredKey[32];
+    DecryptKeyWithPassword("共享口令", encryptedKey, recoveredKey);
+
+    // 5. 解密密文
+    AES_DecryptFile(L"cipher.bin", L"decrypted.txt", recoveredKey);
+    return 0;
+}
+```
 
 ---
 
@@ -133,7 +170,8 @@ cmake --build .
 - **AES-256**：14 轮加密，密钥长度 256 位
 - **CBC 模式**：每次加密生成随机 16 字节初始化向量 (IV)
 - **PKCS7 填充**：兼容任意长度数据
-- **密钥派生**：MAC 地址 → SHA-256 → 32 字节密钥
+- **密钥派生**：MAC 地址 / 硬件信息 → SHA-256 → 32 字节密钥
+- **混合加密流程**：AES 密钥加密数据后，再用用户口令加密 AES 密钥传输给接收方，接收方用口令还原 AES 密钥后解密数据
 - **文件格式**：`[16B IV][密文]`，IV 随机生成，无密钥无法解密
 
 ---

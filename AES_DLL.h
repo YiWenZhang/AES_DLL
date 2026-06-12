@@ -17,6 +17,30 @@ extern "C" {
 // Returns 0 on success, -1 on failure.
 AES_DLL_API int __stdcall GenerateKeyFromMachine(uint8_t keyOut[32]);
 
+// Generate an AES-256 key derived from hardware info (volume serial, computer name, MAC).
+// keyOut must be at least 32 bytes.
+// Returns 0 on success, -1 on failure.
+AES_DLL_API int __stdcall GenerateKeyFromHardware(uint8_t keyOut[32]);
+
+// Encrypt a 32-byte AES key with a password.
+// password    - password/passphrase (UTF-8)
+// aesKey      - 32-byte AES key to be encrypted
+// outEncryptedKey - output buffer (64 bytes):
+//   [16-byte IV][48-byte CBC ciphertext (32 padded to 48)]
+// Returns 0 on success, -1 on failure.
+AES_DLL_API int __stdcall EncryptKeyWithPassword(const char* password,
+                                                  const uint8_t aesKey[32],
+                                                  uint8_t outEncryptedKey[64]);
+
+// Decrypt a password-encrypted AES key back to the original 32-byte key.
+// password    - password/passphrase (UTF-8)
+// encryptedKey - 64-byte encrypted key (IV + ciphertext)
+// outAesKey   - output buffer (32 bytes)
+// Returns 0 on success, -1 on failure.
+AES_DLL_API int __stdcall DecryptKeyWithPassword(const char* password,
+                                                  const uint8_t encryptedKey[64],
+                                                  uint8_t outAesKey[32]);
+
 // Encrypt a file on disk.
 // inputPath  - path to the plaintext file
 // outputPath - path where encrypted data will be written

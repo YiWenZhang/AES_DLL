@@ -54,6 +54,26 @@ _dll.EncryptString.restype = ctypes.c_void_p
 _dll.DecryptString.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_uint8 * 32)]
 _dll.DecryptString.restype = ctypes.c_void_p
 
+# ---- GenerateKeyFromHardware ----
+_dll.GenerateKeyFromHardware.argtypes = [ctypes.POINTER(ctypes.c_uint8 * 32)]
+_dll.GenerateKeyFromHardware.restype = ctypes.c_int
+
+# ---- EncryptKeyWithPassword ----
+_dll.EncryptKeyWithPassword.argtypes = [
+    ctypes.c_char_p,
+    ctypes.POINTER(ctypes.c_uint8 * 32),
+    ctypes.POINTER(ctypes.c_uint8 * 64),
+]
+_dll.EncryptKeyWithPassword.restype = ctypes.c_int
+
+# ---- DecryptKeyWithPassword ----
+_dll.DecryptKeyWithPassword.argtypes = [
+    ctypes.c_char_p,
+    ctypes.POINTER(ctypes.c_uint8 * 64),
+    ctypes.POINTER(ctypes.c_uint8 * 32),
+]
+_dll.DecryptKeyWithPassword.restype = ctypes.c_int
+
 # ---- FreeString ----
 _dll.FreeString.argtypes = [ctypes.c_void_p]
 _dll.FreeString.restype = None
@@ -126,3 +146,40 @@ def get_mac_address() -> str:
     result = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
     _dll.FreeString(ptr)
     return result
+
+
+def generate_key_from_hardware() -> bytes:
+    """Derive a 32-byte AES-256 key from hardware info (volume serial, computer name, MAC)."""
+    key = (ctypes.c_uint8 * 32)()
+    ret = _dll.GenerateKeyFromHardware(key)
+    if ret != 0:
+        raise OSError("GenerateKeyFromHardware failed")
+    return bytes(key)
+
+
+def encrypt_key_with_password(aes_key: bytes, password: str) -> bytes:
+    """Encrypt a 32-byte AES key with a password. Returns 64-byte encrypted key."""
+    if len(aes_key) != 32:
+        raise ValueError("AES key must be exactly 32 bytes")
+    if not password:
+        raise ValueError("Password must not be empty")
+    key_array = (ctypes.c_uint8 * 32)(*aes_key)
+    out = (ctypes.c_uint8 * 64)()
+    ret = _dll.EncryptKeyWithPassword(password.encode("utf-8"), key_array, out)
+    if ret != 0:
+        raise RuntimeError("EncryptKeyWithPassword failed")
+    return bytes(out)
+
+
+def decrypt_key_with_password(encrypted_key: bytes, password: str) -> bytes:
+    """Decrypt a 64-byte encrypted key with a password. Returns 32-byte AES key."""
+    if len(encrypted_key) != 64:
+        raise ValueError("Encrypted key must be exactly 64 bytes")
+    if not password:
+        raise ValueError("Password must not be empty")
+    encrypted_array = (ctypes.c_uint8 * 64)(*encrypted_key)
+    out = (ctypes.c_uint8 * 32)()
+    ret = _dll.DecryptKeyWithPassword(password.encode("utf-8"), encrypted_array, out)
+    if ret != 0:
+        raise RuntimeError("DecryptKeyWithPassword failed — wrong password or corrupted data")
+    return bytes(out)
