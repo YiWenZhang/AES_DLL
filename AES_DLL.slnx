@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="AES_DLL.vcxproj" />
+  <Project Path="AES_DLL.vcxproj" Id="cd5d1cf4-b1ff-41ac-a623-e63be1c2a3ce" />
 </Solution>
